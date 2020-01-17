@@ -91,7 +91,7 @@ class TFRecordExporter:
         if self.print_progress:
             print('%-40s\r' % 'Saving labels...', end='', flush=True)
         assert labels.shape[0] == self.cur_images
-        with open(self.tfr_prefix + '-rxx.labels', 'wb') as f:
+        with tf.io.gfile.GFile(self.tfr_prefix + '-rxx.labels', 'wb') as f:
             np.save(f, labels.astype(np.float32))
 
     def __enter__(self):
@@ -287,11 +287,11 @@ def compare(tfrecord_dir_a, tfrecord_dir_b, ignore_labels):
 
 def create_mnist(tfrecord_dir, mnist_dir):
     print('Loading MNIST from "%s"' % mnist_dir)
-    import gzip
-    with gzip.open(os.path.join(mnist_dir, 'train-images-idx3-ubyte.gz'), 'rb') as file:
-        images = np.frombuffer(file.read(), np.uint8, offset=16)
-    with gzip.open(os.path.join(mnist_dir, 'train-labels-idx1-ubyte.gz'), 'rb') as file:
-        labels = np.frombuffer(file.read(), np.uint8, offset=8)
+
+    with tf.io.gfile.GFile(os.path.join(mnist_dir, 'train-images-idx3-ubyte.gz'), 'rb') as file:
+        images = np.frombuffer(tf.io.decode_compressed(file.read()), np.uint8, offset=16)
+    with tf.io.gfile.GFile(os.path.join(mnist_dir, 'train-labels-idx1-ubyte.gz'), 'rb') as file:
+        labels = np.frombuffer(tf.io.decode_compressed(file.read()), np.uint8, offset=8)
     images = images.reshape(-1, 1, 28, 28)
     images = np.pad(images, [(0,0), (0,0), (2,2), (2,2)], 'constant', constant_values=0)
     assert images.shape == (60000, 1, 32, 32) and images.dtype == np.uint8
@@ -311,9 +311,9 @@ def create_mnist(tfrecord_dir, mnist_dir):
 
 def create_mnistrgb(tfrecord_dir, mnist_dir, num_images=1000000, random_seed=123):
     print('Loading MNIST from "%s"' % mnist_dir)
-    import gzip
-    with gzip.open(os.path.join(mnist_dir, 'train-images-idx3-ubyte.gz'), 'rb') as file:
-        images = np.frombuffer(file.read(), np.uint8, offset=16)
+
+    with tf.io.gfile.GFile(os.path.join(mnist_dir, 'train-images-idx3-ubyte.gz'), 'rb') as file:
+        images = np.frombuffer(tf.io.decode_compressed(file.read()), np.uint8, offset=16)
     images = images.reshape(-1, 28, 28)
     images = np.pad(images, [(0,0), (2,2), (2,2)], 'constant', constant_values=0)
     assert images.shape == (60000, 32, 32) and images.dtype == np.uint8
@@ -332,7 +332,7 @@ def create_cifar10(tfrecord_dir, cifar10_dir):
     images = []
     labels = []
     for batch in range(1, 6):
-        with open(os.path.join(cifar10_dir, 'data_batch_%d' % batch), 'rb') as file:
+        with tf.io.gfile.GFile(os.path.join(cifar10_dir, 'data_batch_%d' % batch), 'rb') as file:
             data = pickle.load(file, encoding='latin1')
         images.append(data['data'].reshape(-1, 3, 32, 32))
         labels.append(data['labels'])
@@ -356,7 +356,7 @@ def create_cifar10(tfrecord_dir, cifar10_dir):
 def create_cifar100(tfrecord_dir, cifar100_dir):
     print('Loading CIFAR-100 from "%s"' % cifar100_dir)
     import pickle
-    with open(os.path.join(cifar100_dir, 'train'), 'rb') as file:
+    with tf.io.gfile.GFile(os.path.join(cifar100_dir, 'train'), 'rb') as file:
         data = pickle.load(file, encoding='latin1')
     images = data['data'].reshape(-1, 3, 32, 32)
     labels = np.array(data['fine_labels'])
@@ -381,7 +381,7 @@ def create_svhn(tfrecord_dir, svhn_dir):
     images = []
     labels = []
     for batch in range(1, 4):
-        with open(os.path.join(svhn_dir, 'train_%d.pkl' % batch), 'rb') as file:
+        with tf.io.gfile.GFile(os.path.join(svhn_dir, 'train_%d.pkl' % batch), 'rb') as file:
             data = pickle.load(file, encoding='latin1')
         images.append(data[0])
         labels.append(data[1])
@@ -483,7 +483,7 @@ def create_lsun_wide(tfrecord_dir, lmdb_dir, width=512, height=384, max_images=N
 def create_celeba(tfrecord_dir, celeba_dir, cx=89, cy=121):
     print('Loading CelebA from "%s"' % celeba_dir)
     glob_pattern = os.path.join(celeba_dir, 'img_align_celeba_png', '*.png')
-    image_filenames = sorted(glob.glob(glob_pattern))
+    image_filenames = sorted(tf.io.gfile.glob(glob_pattern))
     expected_images = 202599
     if len(image_filenames) != expected_images:
         error('Expected to find %d images' % expected_images)
@@ -491,7 +491,8 @@ def create_celeba(tfrecord_dir, celeba_dir, cx=89, cy=121):
     with TFRecordExporter(tfrecord_dir, len(image_filenames)) as tfr:
         order = tfr.choose_shuffled_order()
         for idx in range(order.size):
-            img = np.asarray(PIL.Image.open(image_filenames[order[idx]]))
+            with tf.io.gfile.GFile(image_filenames[order[idx]], 'rb') as f:
+                img = np.asarray(PIL.Image.open(f))
             assert img.shape == (218, 178, 3)
             img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
             img = img.transpose(2, 0, 1) # HWC => CHW
@@ -501,11 +502,12 @@ def create_celeba(tfrecord_dir, celeba_dir, cx=89, cy=121):
 
 def create_from_images(tfrecord_dir, image_dir, shuffle):
     print('Loading images from "%s"' % image_dir)
-    image_filenames = sorted(glob.glob(os.path.join(image_dir, '*')))
+    image_filenames = sorted(tf.io.gfile.GFile.glob(os.path.join(image_dir, '*')))
     if len(image_filenames) == 0:
         error('No input images found')
 
-    img = np.asarray(PIL.Image.open(image_filenames[0]))
+    with tf.io.gfile.GFile(image_filenames[0], 'rb') as f:
+        img = np.asarray(PIL.Image.open(f))
     resolution = img.shape[0]
     channels = img.shape[2] if img.ndim == 3 else 1
     if img.shape[1] != resolution:
@@ -518,7 +520,8 @@ def create_from_images(tfrecord_dir, image_dir, shuffle):
     with TFRecordExporter(tfrecord_dir, len(image_filenames)) as tfr:
         order = tfr.choose_shuffled_order() if shuffle else np.arange(len(image_filenames))
         for idx in range(order.size):
-            img = np.asarray(PIL.Image.open(image_filenames[order[idx]]))
+            with tf.io.gfile.GFile(image_filenames[order[idx]], 'rb') as f:
+                img = np.asarray(PIL.Image.open(f))
             if channels == 1:
                 img = img[np.newaxis, :, :] # HW => CHW
             else:

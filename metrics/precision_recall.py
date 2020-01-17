@@ -183,8 +183,8 @@ class PR(metric_base.MetricBase):
 
         # Calculate features for reals.
         cache_file = self._get_cache_file_for_reals(num_images=self.num_images)
-        os.makedirs(os.path.dirname(cache_file), exist_ok=True)
-        if os.path.isfile(cache_file):
+        tf.io.gfile.makedirs(os.path.dirname(cache_file))
+        if tf.io.gfile.exists(cache_file):
             ref_features = misc.load_pkl(cache_file)
         else:
             ref_features = np.empty([self.num_images, feature_net.output_shape[1]], dtype=np.float32)

@@ -26,7 +26,7 @@ import uuid
 
 from distutils.util import strtobool
 from typing import Any, List, Tuple, Union
-
+import tensorflow as tf
 
 # Util classes
 # ------------------------------------------------------------------------------------------
@@ -279,7 +279,7 @@ def get_top_level_function_name(obj: Any) -> str:
 def list_dir_recursively_with_ignore(dir_path: str, ignores: List[str] = None, add_base_to_relative: bool = False) -> List[Tuple[str, str]]:
     """List all files recursively in a given directory while ignoring given file and directory names.
     Returns list of tuples containing both absolute and relative paths."""
-    assert os.path.isdir(dir_path)
+    assert tf.io.gfile.isdir(dir_path)
     base_name = os.path.basename(os.path.normpath(dir_path))
 
     if ignores is None:
@@ -287,7 +287,7 @@ def list_dir_recursively_with_ignore(dir_path: str, ignores: List[str] = None, a
 
     result = []
 
-    for root, dirs, files in os.walk(dir_path, topdown=True):
+    for root, dirs, files in tf.io.gfile.walk(dir_path, topdown=True):
         for ignore_ in ignores:
             dirs_to_remove = [d for d in dirs if fnmatch.fnmatch(d, ignore_)]
 
@@ -316,8 +316,8 @@ def copy_files_and_create_dirs(files: List[Tuple[str, str]]) -> None:
         target_dir_name = os.path.dirname(file[1])
 
         # will create all intermediate-level directories
-        if not os.path.exists(target_dir_name):
-            os.makedirs(target_dir_name)
+        if not tf.io.gfile.exists(target_dir_name):
+            tf.io.gfile.makedirs(target_dir_name)
 
         shutil.copyfile(file[0], file[1])
 
@@ -355,7 +355,7 @@ def open_url(url: str, cache_dir: str = None, num_attempts: int = 10, verbose: b
     # Lookup from cache.
     url_md5 = hashlib.md5(url.encode("utf-8")).hexdigest()
     if cache_dir is not None:
-        cache_files = glob.glob(os.path.join(cache_dir, url_md5 + "_*"))
+        cache_files = tf.io.gfile.glob(os.path.join(cache_dir, url_md5 + "_*"))
         if len(cache_files) == 1:
             return open(cache_files[0], "rb")
 
@@ -401,10 +401,14 @@ def open_url(url: str, cache_dir: str = None, num_attempts: int = 10, verbose: b
         safe_name = re.sub(r"[^0-9a-zA-Z-._]", "_", url_name)
         cache_file = os.path.join(cache_dir, url_md5 + "_" + safe_name)
         temp_file = os.path.join(cache_dir, "tmp_" + uuid.uuid4().hex + "_" + url_md5 + "_" + safe_name)
-        os.makedirs(cache_dir, exist_ok=True)
+        tf.io.gfile.makedirs(cache_dir, exist_ok=True)
         with open(temp_file, "wb") as f:
             f.write(url_data)
-        os.replace(temp_file, cache_file) # atomic
+        try:
+            tf.io.gfile.remove(cache_file)
+        except tf.errors.NotFoundError:
+            pass
+        tf.io.gfile.rename(temp_file, cache_file) # atomic
 
     # Return data as file object.
     return io.BytesIO(url_data)

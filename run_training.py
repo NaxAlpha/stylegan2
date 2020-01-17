@@ -6,11 +6,12 @@
 
 import argparse
 import copy
-import os
 import sys
 
 import dnnlib
 from dnnlib import EasyDict
+
+import tensorflow as tf
 
 from metrics.metric_defaults import metric_defaults
 
@@ -171,7 +172,7 @@ def main():
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.data_dir):
+    if not tf.io.gfile.exists(args.data_dir):
         print ('Error: dataset root directory does not exist.')
         sys.exit(1)
 

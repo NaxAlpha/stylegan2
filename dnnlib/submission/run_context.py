@@ -14,6 +14,7 @@ import time
 import types
 
 from typing import Any
+import tensorflow as tf
 
 from . import submit
 
@@ -51,7 +52,7 @@ class RunContext(object):
 
         # write out details about the run to a text file
         self.run_txt_data = {"task_name": submit_config.task_name, "host_name": submit_config.host_name, "start_time": datetime.datetime.now().isoformat(sep=" ")}
-        with open(os.path.join(submit_config.run_dir, "run.txt"), "w") as f:
+        with tf.io.gfile.GFile(os.path.join(submit_config.run_dir, "run.txt"), "w") as f:
             pprint.pprint(self.run_txt_data, stream=f, indent=4, width=200, compact=False)
 
     def __enter__(self) -> "RunContext":
@@ -93,7 +94,7 @@ class RunContext(object):
         if not self.has_closed:
             # update the run.txt with stopping time
             self.run_txt_data["stop_time"] = datetime.datetime.now().isoformat(sep=" ")
-            with open(os.path.join(self.submit_config.run_dir, "run.txt"), "w") as f:
+            with tf.io.gfile.GFile(os.path.join(self.submit_config.run_dir, "run.txt"), "w") as f:
                 pprint.pprint(self.run_txt_data, stream=f, indent=4, width=200, compact=False)
             self.has_closed = True
 

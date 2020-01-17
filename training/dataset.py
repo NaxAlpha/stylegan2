@@ -50,8 +50,8 @@ class TFRecordDataset:
         self._cur_lod           = -1
 
         # List tfrecords files and inspect their shapes.
-        assert os.path.isdir(self.tfrecord_dir)
-        tfr_files = sorted(glob.glob(os.path.join(self.tfrecord_dir, '*.tfrecords')))
+        assert tf.io.gfile.isdir(self.tfrecord_dir)
+        tfr_files = sorted(tf.io.gfile.glob(os.path.join(self.tfrecord_dir, '*.tfrecords')))
         assert len(tfr_files) >= 1
         tfr_shapes = []
         for tfr_file in tfr_files:
@@ -62,12 +62,12 @@ class TFRecordDataset:
 
         # Autodetect label filename.
         if self.label_file is None:
-            guess = sorted(glob.glob(os.path.join(self.tfrecord_dir, '*.labels')))
+            guess = sorted(tf.io.gfile.glob(os.path.join(self.tfrecord_dir, '*.labels')))
             if len(guess):
                 self.label_file = guess[0]
-        elif not os.path.isfile(self.label_file):
+        elif not tf.io.gfile.exists(self.label_file):
             guess = os.path.join(self.tfrecord_dir, self.label_file)
-            if os.path.isfile(guess):
+            if tf.io.gfile.exists(guess):
                 self.label_file = guess
 
         # Determine shape and resolution.

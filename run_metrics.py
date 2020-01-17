@@ -5,11 +5,12 @@
 # https://nvlabs.github.io/stylegan2/license.html
 
 import argparse
-import os
 import sys
 
 import dnnlib
 import dnnlib.tflib as tflib
+
+import tensorflow as tf
 
 import pretrained_networks
 from metrics import metric_base
@@ -65,7 +66,7 @@ def main():
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.data_dir):
+    if not tf.io.gfile.exists(args.data_dir):
         print ('Error: dataset root directory does not exist.')
         sys.exit(1)
 

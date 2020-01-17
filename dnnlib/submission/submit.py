@@ -20,6 +20,7 @@ import time
 import traceback
 
 from enum import Enum
+import tensorflow as tf
 
 from .. import util
 from ..util import EasyDict
@@ -193,24 +194,24 @@ def _create_run_dir_local(submit_config: SubmitConfig) -> str:
     """Create a new run dir with increasing ID number at the start."""
     run_dir_root = get_path_from_template(submit_config.run_dir_root, PathType.AUTO)
 
-    if not os.path.exists(run_dir_root):
-        os.makedirs(run_dir_root)
+    if not tf.io.gfile.exists(run_dir_root):
+        tf.io.gfile.makedirs(run_dir_root)
 
     submit_config.run_id = _get_next_run_id_local(run_dir_root)
     submit_config.run_name = "{0:05d}-{1}".format(submit_config.run_id, submit_config.run_desc)
     run_dir = os.path.join(run_dir_root, submit_config.run_name)
 
-    if os.path.exists(run_dir):
+    if tf.io.gfile.exists(run_dir):
         raise RuntimeError("The run dir already exists! ({0})".format(run_dir))
 
-    os.makedirs(run_dir)
+    tf.io.gfile.makedirs(run_dir)
 
     return run_dir
 
 
 def _get_next_run_id_local(run_dir_root: str) -> int:
     """Reads all directory names in a given directory (non-recursive) and returns the next (increasing) run id. Assumes IDs are numbers at the start of the directory names."""
-    dir_names = [d for d in os.listdir(run_dir_root) if os.path.isdir(os.path.join(run_dir_root, d))]
+    dir_names = [d for d in tf.io.gfile.listdir(run_dir_root) if tf.io.gfile.isdir(os.path.join(run_dir_root, d))]
     r = re.compile("^\\d+")  # match one or more digits at the start of the string
     run_id = 0
 
@@ -226,8 +227,8 @@ def _get_next_run_id_local(run_dir_root: str) -> int:
 
 def _populate_run_dir(submit_config: SubmitConfig, run_dir: str) -> None:
     """Copy all necessary files into the run dir. Assumes that the dir exists, is local, and is writable."""
-    pickle.dump(submit_config, open(os.path.join(run_dir, "submit_config.pkl"), "wb"))
-    with open(os.path.join(run_dir, "submit_config.txt"), "w") as f:
+    pickle.dump(submit_config, tf.io.gfile.GFile(os.path.join(run_dir, "submit_config.pkl"), "wb"))
+    with tf.io.gfile.GFile(os.path.join(run_dir, "submit_config.txt"), "w") as f:
         pprint.pprint(submit_config, stream=f, indent=4, width=200, compact=False)
 
     if (submit_config.submit_target == SubmitTarget.LOCAL) and submit_config.local.do_not_copy_source_files:
@@ -293,7 +294,7 @@ def run_wrapper(submit_config: SubmitConfig) -> None:
             # Defer sys.exit(1) to happen after we close the logs and create a _finished.txt
             exit_with_errcode = True
     finally:
-        open(os.path.join(submit_config.run_dir, "_finished.txt"), "w").close()
+        tf.io.gfile.GFile(os.path.join(submit_config.run_dir, "_finished.txt"), "w").close()
 
     dnnlib.RunContext.get().close()
     dnnlib.submit_config = None

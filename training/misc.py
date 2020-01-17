@@ -13,6 +13,8 @@ import PIL.Image
 import PIL.ImageFont
 import dnnlib
 
+import tensorflow as tf
+
 #----------------------------------------------------------------------------
 # Convenience wrappers for pickle that are able to load data produced by
 # older versions of the code, and from external URLs.
@@ -20,14 +22,14 @@ import dnnlib
 def open_file_or_url(file_or_url):
     if dnnlib.util.is_url(file_or_url):
         return dnnlib.util.open_url(file_or_url, cache_dir='.stylegan2-cache')
-    return open(file_or_url, 'rb')
+    return tf.io.gfile.GFile(file_or_url, 'rb')
 
 def load_pkl(file_or_url):
     with open_file_or_url(file_or_url) as file:
         return pickle.load(file, encoding='latin1')
 
 def save_pkl(obj, filename):
-    with open(filename, 'wb') as file:
+    with tf.io.gfile.GFile(filename, 'wb') as file:
         pickle.dump(obj, file, protocol=pickle.HIGHEST_PROTOCOL)
 
 #----------------------------------------------------------------------------
@@ -83,7 +85,7 @@ def apply_mirror_augment(minibatch):
 # Loading data from previous training runs.
 
 def parse_config_for_previous_run(run_dir):
-    with open(os.path.join(run_dir, 'submit_config.pkl'), 'rb') as f:
+    with tf.io.gfile.GFile(os.path.join(run_dir, 'submit_config.pkl'), 'rb') as f:
         data = pickle.load(f)
     data = data.get('run_func_kwargs', {})
     return dict(train=data, dataset=data.get('dataset_args', {}))
